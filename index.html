@@ -363,7 +363,7 @@ function refreshChart(){
 async function fetchData() {
   try {
     // Reemplaza "TU_CHANNEL_ID" y "TU_READ_API_KEY" con los datos de tu canal de ThingSpeak
-    var r = await fetch('https://api.thingspeak.com/channels/TU_CHANNEL_ID/feeds.json?api_key=TU_READ_API_KEY&results=100');
+    var r = await fetch('https://api.thingspeak.com/channels/3395744/feeds.json?api_key=CDJ2ZZDB0US1OSCE&results=100');
     var d = await r.json();
     
     var lecturas = d.feeds;
