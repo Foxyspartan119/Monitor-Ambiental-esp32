@@ -1,1 +1,394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Monitor Ambiental</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* ── RESET & TOKENS ───────────────────────────── */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:       #070b14;
+  --surface1: rgba(255,255,255,.05);
+  --surface2: rgba(255,255,255,.08);
+  --border:   rgba(255,255,255,.07);
+  --text:     #e8ecf4;
+  --muted:    rgba(232,236,244,.35);
+  --c-temp:   #ff7043;
+  --c-sound:  #42a5f5;
+  --c-co:     #ab47bc;
+  --green:    #4ade80;
+  --yellow:   #facc15;
+  --red:      #f87171;
+  --font:'DM Sans',system-ui,sans-serif;
+  --mono:'DM Mono',monospace;
+}
+html{font-size:16px}
+body{
+  font-family:var(--font);
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  overflow-x:hidden;
+}
 
+/* ── FONDO ANIMADO ─────────────────────────────── */
+body::before{
+  content:'';
+  position:fixed;inset:0;z-index:0;
+  background:
+    radial-gradient(ellipse 60% 40% at 20% 10%, rgba(255,112,67,.07) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 80% 20%, rgba(66,165,245,.07) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 50% at 50% 80%, rgba(171,71,188,.06) 0%, transparent 60%);
+  pointer-events:none;
+}
+body>*{position:relative;z-index:1}
+
+/* ── HEADER ────────────────────────────────────── */
+.hdr{
+  padding:22px 22px 10px;
+  display:flex;justify-content:space-between;align-items:flex-start;
+}
+.hdr-left p{
+  font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:5px;
+}
+.hdr-left h1{
+  font-size:clamp(1.2rem,4vw,1.6rem);font-weight:700;
+  letter-spacing:-.02em;
+  background:linear-gradient(90deg,#90caf9 0%,#ce93d8 50%,#ffab91 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.hdr-right{
+  display:flex;flex-direction:column;align-items:flex-end;gap:4px;
+  padding-top:2px;
+}
+.connection{
+  display:flex;align-items:center;gap:7px;
+  font-size:.7rem;color:var(--muted);
+}
+.dot{
+  width:9px;height:9px;border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 0 3px rgba(74,222,128,.15),0 0 10px rgba(74,222,128,.4);
+  animation:pulse 2.5s ease-in-out infinite;
+  flex-shrink:0;
+}
+.dot.err{
+  background:var(--red);
+  box-shadow:0 0 0 3px rgba(248,113,113,.15),0 0 10px rgba(248,113,113,.4);
+}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.ip-tag{
+  font-family:var(--mono);font-size:.65rem;
+  color:var(--muted);background:var(--surface1);
+  padding:2px 8px;border-radius:6px;border:1px solid var(--border);
+}
+
+/* ── CARDS ──────────────────────────────────────── */
+.cards{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:14px;padding:10px 22px 16px;
+}
+.card{
+  border-radius:22px;padding:18px 16px 16px;
+  border:1px solid var(--border);
+  backdrop-filter:blur(12px);
+  transition:transform .2s,box-shadow .2s;
+  overflow:hidden;position:relative;
+}
+.card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.35)}
+.card::before{
+  content:'';position:absolute;
+  top:-25px;right:-25px;
+  width:90px;height:90px;border-radius:50%;
+  background:rgba(255,255,255,.06);
+}
+.card-t{background:linear-gradient(145deg,rgba(255,112,67,.25),rgba(255,112,67,.08))}
+.card-s{background:linear-gradient(145deg,rgba(66,165,245,.25),rgba(66,165,245,.08))}
+.card-c{background:linear-gradient(145deg,rgba(171,71,188,.25),rgba(171,71,188,.08))}
+.c-ico{font-size:1.5rem;margin-bottom:8px;line-height:1}
+.c-lbl{
+  font-size:.65rem;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:6px;
+}
+.c-val{
+  font-size:clamp(1.5rem,5vw,2rem);
+  font-weight:700;letter-spacing:-.03em;line-height:1;
+  margin-bottom:6px;
+}
+.c-unit{font-size:.8rem;font-weight:400;opacity:.7;margin-left:1px}
+.badge{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:.63rem;font-weight:500;
+  padding:3px 9px;border-radius:10px;
+  background:rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.1);
+  white-space:nowrap;
+}
+
+/* ── CHART ───────────────────────────────────────── */
+.chart-section{
+  margin:0 22px 14px;
+  background:var(--surface1);
+  border:1px solid var(--border);
+  border-radius:24px;
+  padding:20px 20px 16px;
+  backdrop-filter:blur(12px);
+}
+.ch-head{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:18px;
+}
+.ch-title{font-size:.95rem;font-weight:600;letter-spacing:-.01em}
+.tabs{
+  display:flex;gap:3px;
+  background:rgba(0,0,0,.4);
+  border-radius:12px;padding:3px;
+}
+.tab{
+  padding:6px 14px;border-radius:9px;
+  font-size:.75rem;font-weight:500;
+  cursor:pointer;border:none;
+  background:transparent;
+  color:var(--muted);
+  transition:all .2s;
+  font-family:var(--font);
+}
+.tab.on{
+  background:rgba(66,165,245,.9);
+  color:#fff;
+  box-shadow:0 2px 12px rgba(66,165,245,.4);
+}
+.ch-box{height:180px}
+
+/* ── LEYENDA CUSTOM ─────────────────────────────── */
+.legend{
+  display:flex;gap:16px;justify-content:center;
+  margin-top:14px;flex-wrap:wrap;
+}
+.leg-item{
+  display:flex;align-items:center;gap:6px;
+  font-size:.7rem;color:var(--muted);
+}
+.leg-dot{width:8px;height:8px;border-radius:50%}
+
+/* ── FOOTER INFO ────────────────────────────────── */
+.foot{
+  display:flex;justify-content:space-between;
+  padding:0 22px 24px;
+  font-size:.68rem;color:var(--muted);
+}
+
+/* ── RESPONSIVE ─────────────────────────────────── */
+@media(max-width:520px){
+  .hdr{padding:18px 16px 8px}
+  .cards{
+    grid-template-columns:repeat(2,1fr);
+    gap:10px;padding:8px 16px 12px;
+  }
+  .card:first-child{grid-column:1/-1}
+  .chart-section{margin:0 16px 12px;padding:16px 14px 14px}
+  .foot{padding:0 16px 20px}
+  .ch-box{height:160px}
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-left">
+    <p id="lugar">Cargando...</p>
+    <h1>Monitor Ambiental</h1>
+  </div>
+  <div class="hdr-right">
+    <div class="connection">
+      <span id="stLbl">Conectando</span>
+      <div class="dot" id="dot"></div>
+    </div>
+    <div class="ip-tag" id="ipTag">---.---.---.---</div>
+  </div>
+</div>
+
+<div class="cards">
+  <div class="card card-t">
+    <div class="c-ico">🌡️</div>
+    <div class="c-lbl">Temperatura</div>
+    <div class="c-val"><span id="vTemp">--</span><span class="c-unit">°C</span></div>
+    <div class="badge" id="bTemp">···</div>
+  </div>
+  <div class="card card-s">
+    <div class="c-ico">🔊</div>
+    <div class="c-lbl">Ruido</div>
+    <div class="c-val"><span id="vSound">--</span><span class="c-unit">dB</span></div>
+    <div class="badge" id="bSound">···</div>
+  </div>
+  <div class="card card-c">
+    <div class="c-ico">💨</div>
+    <div class="c-lbl">CO (MQ-7)</div>
+    <div class="c-val"><span id="vCO">--</span><span class="c-unit">ppm</span></div>
+    <div class="badge" id="bCO">···</div>
+  </div>
+</div>
+
+<div class="chart-section">
+  <div class="ch-head">
+    <span class="ch-title">Histórico de lecturas</span>
+    <div class="tabs">
+      <button class="tab"    onclick="setRng('d',this)">Días</button>
+      <button class="tab on" onclick="setRng('h',this)">Horas</button>
+      <button class="tab"    onclick="setRng('m',this)">Min</button>
+    </div>
+  </div>
+  <div class="ch-box">
+    <canvas id="myChart"></canvas>
+  </div>
+  <div class="legend">
+    <div class="leg-item"><div class="leg-dot" style="background:#ff7043"></div>Temperatura °C</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#42a5f5"></div>Ruido dB</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#ce93d8"></div>CO ppm</div>
+  </div>
+</div>
+
+<div class="foot">
+  <span>Actualizado: <span id="upd">--</span></span>
+  <span>Intervalo: 2 s</span>
+</div>
+
+<script>
+// ── Estado ─────────────────────────────────
+var rng = 'h', raw = null;
+// ── Chart.js ───────────────────────────────
+var cfg = {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [
+      { label:'Temp',  data:[], borderColor:'#ff7043', backgroundColor:'rgba(255,112,67,.12)',
+        tension:.45, fill:true, pointRadius:2.5, pointHoverRadius:6,
+        borderWidth:2, pointBackgroundColor:'#ff7043' },
+      { label:'Ruido', data:[], borderColor:'#42a5f5', backgroundColor:'rgba(66,165,245,.1)',
+        tension:.45, fill:true, pointRadius:2.5, pointHoverRadius:6,
+        borderWidth:2, pointBackgroundColor:'#42a5f5' },
+      { label:'CO',    data:[], borderColor:'#ce93d8', backgroundColor:'rgba(206,147,216,.1)',
+        tension:.45, fill:true, pointRadius:2.5, pointHoverRadius:6,
+        borderWidth:2, pointBackgroundColor:'#ce93d8' }
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    interaction:{mode:'index', intersect:false},
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        backgroundColor:'rgba(7,11,20,.95)',
+        borderColor:'rgba(255,255,255,.12)',borderWidth:1,
+        titleColor:'rgba(255,255,255,.9)',bodyColor:'rgba(255,255,255,.65)',
+        padding:10,cornerRadius:10,
+        callbacks:{
+          label: function(ctx){
+            var units = ['°C','dB','ppm'];
+            return ' '+ctx.dataset.label+': '+ctx.parsed.y+' '+units[ctx.datasetIndex];
+          }
+        }
+      }
+    },
+    scales:{
+      x:{
+        ticks:{color:'rgba(232,236,244,.3)', maxTicksLimit:8, font:{size:10}},
+        grid:{color:'rgba(255,255,255,.04)'},
+        border:{color:'rgba(255,255,255,.05)'}
+      },
+      y:{
+        ticks:{color:'rgba(232,236,244,.3)', font:{size:10}},
+        grid:{color:'rgba(255,255,255,.04)'},
+        border:{color:'rgba(255,255,255,.05)'}
+      }
+    },
+    animation:{duration:300}
+  }
+};
+var chart = new Chart(
+  document.getElementById('myChart').getContext('2d'), cfg
+);
+
+// ── Helpers ────────────────────────────────
+function setRng(r, el){
+  rng = r;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  refreshChart();
+}
+
+function tempBadge(v){
+  if(v < 10) return '🧊 Muy frío';
+  if(v < 18) return '❄️ Frío';
+  if(v < 26) return '✅ Confortable';
+  if(v < 35) return '🌡️ Cálido';
+  return '🔥 Muy caliente';
+}
+function soundBadge(v){
+  if(v < 30) return '🔇 Silencio';
+  if(v < 55) return '✅ Tranquilo';
+  if(v < 75) return '💬 Moderado';
+  if(v < 90) return '⚠️ Ruidoso';
+  return '🚨 Muy ruidoso';
+}
+function coBadge(v){
+  if(v < 9)   return '✅ Excelente';
+  if(v < 35)  return '🟢 Seguro';
+  if(v < 200) return '⚠️ Moderado';
+  if(v < 400) return '🔴 Alto';
+  return '🚨 Peligroso';
+}
+
+function refreshChart(){
+  if(!raw) return;
+  var ds   = rng==='m' ? raw.minutes : rng==='h' ? raw.hours : raw.days;
+  var unit = rng==='m' ? 'min' : rng==='h' ? 'h' : 'd';
+  if(!ds || ds.length === 0){ chart.data.labels=[]; chart.data.datasets.forEach(d=>d.data=[]); chart.update(); return; }
+  var lbl = ds.map(function(_,i){ return '-'+(ds.length-1-i)+unit; });
+  chart.data.labels = lbl;
+  chart.data.datasets[0].data = ds.map(function(d){return d.t});
+  chart.data.datasets[1].data = ds.map(function(d){return d.s});
+  chart.data.datasets[2].data = ds.map(function(d){return d.c});
+  chart.update('none');
+}
+
+// ── Fetch / actualización ─────────────────
+async function fetchData(){
+  try{
+    var r = await fetch('/data');
+    var d = await r.json();
+    raw = d;
+
+    document.getElementById('vTemp').textContent  = d.current.temp.toFixed(1);
+    document.getElementById('vSound').textContent = d.current.sound;
+    document.getElementById('vCO').textContent    = d.current.co;
+
+    document.getElementById('bTemp').textContent  = tempBadge(d.current.temp);
+    document.getElementById('bSound').textContent = soundBadge(d.current.sound);
+    document.getElementById('bCO').textContent    = coBadge(d.current.co);
+    document.getElementById('upd').textContent    = new Date().toLocaleTimeString('es-MX');
+    document.getElementById('ipTag').textContent  = d.ip || '---';
+    document.getElementById('lugar').textContent  = d.lugar || 'Monitoreo';
+
+    refreshChart();
+    document.getElementById('dot').className  = 'dot';
+    document.getElementById('stLbl').textContent = 'Conectado';
+
+  } catch(e){
+    document.getElementById('dot').className  = 'dot err';
+    document.getElementById('stLbl').textContent = 'Sin señal';
+  }
+}
+
+fetchData();
+setInterval(fetchData, 2000);
+</script>
+</body>
+</html>
