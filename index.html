@@ -360,30 +360,26 @@ function refreshChart(){
 }
 
 // ── Fetch / actualización ─────────────────
-async function fetchData(){
-  try{
-    var r = await fetch('/data');
+async function fetchData() {
+  try {
+    // Reemplaza "TU_CHANNEL_ID" y "TU_READ_API_KEY" con los datos de tu canal de ThingSpeak
+    var r = await fetch('https://api.thingspeak.com/channels/TU_CHANNEL_ID/feeds.json?api_key=TU_READ_API_KEY&results=100');
     var d = await r.json();
-    raw = d;
-
-    document.getElementById('vTemp').textContent  = d.current.temp.toFixed(1);
-    document.getElementById('vSound').textContent = d.current.sound;
-    document.getElementById('vCO').textContent    = d.current.co;
-
-    document.getElementById('bTemp').textContent  = tempBadge(d.current.temp);
-    document.getElementById('bSound').textContent = soundBadge(d.current.sound);
-    document.getElementById('bCO').textContent    = coBadge(d.current.co);
-    document.getElementById('upd').textContent    = new Date().toLocaleTimeString('es-MX');
-    document.getElementById('ipTag').textContent  = d.ip || '---';
-    document.getElementById('lugar').textContent  = d.lugar || 'Monitoreo';
-
-    refreshChart();
-    document.getElementById('dot').className  = 'dot';
-    document.getElementById('stLbl').textContent = 'Conectado';
-
-  } catch(e){
-    document.getElementById('dot').className  = 'dot err';
-    document.getElementById('stLbl').textContent = 'Sin señal';
+    
+    var lecturas = d.feeds;
+    if(lecturas.length > 0) {
+      // Tomamos la lectura más reciente (la última del arreglo)
+      var actual = lecturas[lecturas.length - 1];
+      
+      // Actualizamos los textos en pantalla (field1 = Temp, field2 = Ruido, field3 = CO)
+      document.getElementById('vTemp').textContent  = parseFloat(actual.field1).toFixed(1);
+      document.getElementById('vSound').textContent = parseInt(actual.field2);
+      document.getElementById('vCO').textContent    = parseInt(actual.field3);
+      
+      // ... Aquí también puedes usar los datos de "lecturas" para llenar la gráfica ...
+    }
+  } catch(e) {
+    console.error("Error obteniendo datos de la nube");
   }
 }
 
