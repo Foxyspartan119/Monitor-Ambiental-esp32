@@ -222,10 +222,10 @@ body>*{position:relative;z-index:1}
     <div class="badge" id="bTemp">···</div>
   </div>
   <div class="card card-s">
-    <div class="c-ico">🔊</div>
-    <div class="c-lbl">Ruido</div>
-    <div class="c-val"><span id="vSound">--</span><span class="c-unit">dB</span></div>
-    <div class="badge" id="bSound">···</div>
+    <div class="c-ico">💡</div>
+    <div class="c-lbl">IR Reflexivo</div>
+    <div class="c-val"><span id="vIR">--</span><span class="c-unit">%</span></div>
+    <div class="badge" id="bIR">···</div>
   </div>
   <div class="card card-c">
     <div class="c-ico">💨</div>
@@ -249,7 +249,7 @@ body>*{position:relative;z-index:1}
   </div>
   <div class="legend">
     <div class="leg-item"><div class="leg-dot" style="background:#ff7043"></div>Temperatura °C</div>
-    <div class="leg-item"><div class="leg-dot" style="background:#42a5f5"></div>Ruido dB</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#42a5f5"></div>Infrarrojo %</div>
     <div class="leg-item"><div class="leg-dot" style="background:#ce93d8"></div>CO ppm</div>
   </div>
 </div>
@@ -271,7 +271,7 @@ var cfg = {
     datasets: [
       { label:'Temp',  data:[], borderColor:'#ff7043', backgroundColor:'rgba(255,112,67,.12)',
         tension:.45, fill:true, pointRadius:2.5, pointHoverRadius:6, borderWidth:2, pointBackgroundColor:'#ff7043' },
-      { label:'Ruido', data:[], borderColor:'#42a5f5', backgroundColor:'rgba(66,165,245,.1)',
+      { label:'Infrarrojo', data:[], borderColor:'#42a5f5', backgroundColor:'rgba(66,165,245,.1)',
         tension:.45, fill:true, pointRadius:2.5, pointHoverRadius:6, borderWidth:2, pointBackgroundColor:'#42a5f5' },
       { label:'CO',    data:[], borderColor:'#ce93d8', backgroundColor:'rgba(206,147,216,.1)',
         tension:.45, fill:true, pointRadius:2.5, pointHoverRadius:6, borderWidth:2, pointBackgroundColor:'#ce93d8' }
@@ -287,7 +287,7 @@ var cfg = {
         titleColor:'rgba(255,255,255,.9)',bodyColor:'rgba(255,255,255,.65)', padding:10,cornerRadius:10,
         callbacks:{
           label: function(ctx){
-            var units = ['°C','dB','ppm'];
+            var units = ['°C','%','ppm']; // <-- Cambiamos 'dB' por '%'
             return ' '+ctx.dataset.label+': '+ctx.parsed.y.toFixed(1)+' '+units[ctx.datasetIndex];
           }
         }
@@ -307,9 +307,11 @@ function tempBadge(v) {
   if(v < 10) return '🧊 Muy frío'; if(v < 18) return '❄️ Frío';
   if(v < 26) return '✅ Confortable'; if(v < 35) return '🌡️ Cálido'; return '🔥 Muy caliente';
 }
-function soundBadge(v) {
-  if(v < 30) return '🔇 Silencio'; if(v < 55) return '✅ Tranquilo';
-  if(v < 75) return '💬 Moderado'; if(v < 90) return '⚠️ Ruidoso'; return '🚨 Muy ruidoso';
+function irBadge(v) {
+  if(v < 10) return '⚫ Sin reflejo';
+  if(v < 40) return '🌫️ Lejano / Oscuro';
+  if(v < 70) return '👤 Cercano';
+  return '⚪ Muy cerca / Claro';
 }
 function coBadge(v) {
   if(v < 9) return '✅ Excelente'; if(v < 35) return '🟢 Seguro';
@@ -338,19 +340,16 @@ async function fetchData() {
     if (dataEnVivo.feeds && dataEnVivo.feeds.length > 0) {
       var actual = dataEnVivo.feeds[0];
       var t_actual = parseFloat(actual.field1) || 0;
-      var s_actual = parseFloat(actual.field2) || 0;
+      var ir_actual = parseFloat(actual.field2) || 0;
       var c_actual = parseFloat(actual.field3) || 0;
 
       document.getElementById('vTemp').textContent  = t_actual.toFixed(1);
-      document.getElementById('vSound').textContent = Math.round(s_actual);
+      document.getElementById('vIR').textContent    = Math.round(ir_actual); // <-- Nuevo ID
       document.getElementById('vCO').textContent    = Math.round(c_actual);
       
       document.getElementById('bTemp').textContent  = tempBadge(t_actual);
-      document.getElementById('bSound').textContent = soundBadge(s_actual);
+      document.getElementById('bIR').textContent    = irBadge(ir_actual);    // <-- Nuevo ID y Función
       document.getElementById('bCO').textContent    = coBadge(c_actual);
-      
-      document.getElementById('upd').textContent    = new Date().toLocaleTimeString('es-MX');
-      document.getElementById('ipTag').textContent  = dataEnVivo.channel.name || 'ThingSpeak';
     }
 
     // 2. OBTENEMOS EL HISTORIAL PARA LA GRÁFICA (Dependiendo del botón seleccionado)
