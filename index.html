@@ -261,22 +261,20 @@ body>*{position:relative;z-index:1}
 
 <script>
 // ── Estado ─────────────────────────────────
-var rng = 'h', raw = null;
-// ── Chart.js ───────────────────────────────
+var rng = 'h'; // Por defecto arranca en "Horas"
+
+// ── Chart.js (Configuración Visual) ────────
 var cfg = {
   type: 'line',
   data: {
     labels: [],
     datasets: [
       { label:'Temp',  data:[], borderColor:'#ff7043', backgroundColor:'rgba(255,112,67,.12)',
-        tension:.45, fill:true, pointRadius:2.5, pointHoverRadius:6,
-        borderWidth:2, pointBackgroundColor:'#ff7043' },
+        tension:.45, fill:true, pointRadius:2.5, pointHoverRadius:6, borderWidth:2, pointBackgroundColor:'#ff7043' },
       { label:'Ruido', data:[], borderColor:'#42a5f5', backgroundColor:'rgba(66,165,245,.1)',
-        tension:.45, fill:true, pointRadius:2.5, pointHoverRadius:6,
-        borderWidth:2, pointBackgroundColor:'#42a5f5' },
+        tension:.45, fill:true, pointRadius:2.5, pointHoverRadius:6, borderWidth:2, pointBackgroundColor:'#42a5f5' },
       { label:'CO',    data:[], borderColor:'#ce93d8', backgroundColor:'rgba(206,147,216,.1)',
-        tension:.45, fill:true, pointRadius:2.5, pointHoverRadius:6,
-        borderWidth:2, pointBackgroundColor:'#ce93d8' }
+        tension:.45, fill:true, pointRadius:2.5, pointHoverRadius:6, borderWidth:2, pointBackgroundColor:'#ce93d8' }
     ]
   },
   options:{
@@ -285,93 +283,60 @@ var cfg = {
     plugins:{
       legend:{display:false},
       tooltip:{
-        backgroundColor:'rgba(7,11,20,.95)',
-        borderColor:'rgba(255,255,255,.12)',borderWidth:1,
-        titleColor:'rgba(255,255,255,.9)',bodyColor:'rgba(255,255,255,.65)',
-        padding:10,cornerRadius:10,
+        backgroundColor:'rgba(7,11,20,.95)', borderColor:'rgba(255,255,255,.12)',borderWidth:1,
+        titleColor:'rgba(255,255,255,.9)',bodyColor:'rgba(255,255,255,.65)', padding:10,cornerRadius:10,
         callbacks:{
           label: function(ctx){
             var units = ['°C','dB','ppm'];
-            return ' '+ctx.dataset.label+': '+ctx.parsed.y+' '+units[ctx.datasetIndex];
+            return ' '+ctx.dataset.label+': '+ctx.parsed.y.toFixed(1)+' '+units[ctx.datasetIndex];
           }
         }
       }
     },
     scales:{
-      x:{
-        ticks:{color:'rgba(232,236,244,.3)', maxTicksLimit:8, font:{size:10}},
-        grid:{color:'rgba(255,255,255,.04)'},
-        border:{color:'rgba(255,255,255,.05)'}
-      },
-      y:{
-        ticks:{color:'rgba(232,236,244,.3)', font:{size:10}},
-        grid:{color:'rgba(255,255,255,.04)'},
-        border:{color:'rgba(255,255,255,.05)'}
-      }
+      x:{ ticks:{color:'rgba(232,236,244,.3)', maxTicksLimit:8, font:{size:10}}, grid:{color:'rgba(255,255,255,.04)'}, border:{color:'rgba(255,255,255,.05)'} },
+      y:{ ticks:{color:'rgba(232,236,244,.3)', font:{size:10}}, grid:{color:'rgba(255,255,255,.04)'}, border:{color:'rgba(255,255,255,.05)'} }
     },
     animation:{duration:300}
   }
 };
-var chart = new Chart(
-  document.getElementById('myChart').getContext('2d'), cfg
-);
+var chart = new Chart(document.getElementById('myChart').getContext('2d'), cfg);
 
-// ── Helpers ────────────────────────────────
+// ── Helpers Visuales ───────────────────────
+function tempBadge(v) {
+  if(v < 10) return '🧊 Muy frío'; if(v < 18) return '❄️ Frío';
+  if(v < 26) return '✅ Confortable'; if(v < 35) return '🌡️ Cálido'; return '🔥 Muy caliente';
+}
+function soundBadge(v) {
+  if(v < 30) return '🔇 Silencio'; if(v < 55) return '✅ Tranquilo';
+  if(v < 75) return '💬 Moderado'; if(v < 90) return '⚠️ Ruidoso'; return '🚨 Muy ruidoso';
+}
+function coBadge(v) {
+  if(v < 9) return '✅ Excelente'; if(v < 35) return '🟢 Seguro';
+  if(v < 200) return '⚠️ Moderado'; if(v < 400) return '🔴 Alto'; return '🚨 Peligroso';
+}
+
+// ── Lógica de Botones ──────────────────────
 function setRng(r, el){
-  rng = r;
+  rng = r; // Actualiza la variable global con 'm', 'h' o 'd'
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
-  el.classList.add('on');
-  refreshChart();
+  el.classList.add('on'); // Pinta el botón presionado
+  fetchData(); // Forzamos una actualización inmediata de la gráfica
 }
 
-function tempBadge(v){
-  if(v < 10) return '🧊 Muy frío';
-  if(v < 18) return '❄️ Frío';
-  if(v < 26) return '✅ Confortable';
-  if(v < 35) return '🌡️ Cálido';
-  return '🔥 Muy caliente';
-}
-function soundBadge(v){
-  if(v < 30) return '🔇 Silencio';
-  if(v < 55) return '✅ Tranquilo';
-  if(v < 75) return '💬 Moderado';
-  if(v < 90) return '⚠️ Ruidoso';
-  return '🚨 Muy ruidoso';
-}
-function coBadge(v){
-  if(v < 9)   return '✅ Excelente';
-  if(v < 35)  return '🟢 Seguro';
-  if(v < 200) return '⚠️ Moderado';
-  if(v < 400) return '🔴 Alto';
-  return '🚨 Peligroso';
-}
-
-function refreshChart(){
-  if(!raw) return;
-  var ds   = rng==='m' ? raw.minutes : rng==='h' ? raw.hours : raw.days;
-  var unit = rng==='m' ? 'min' : rng==='h' ? 'h' : 'd';
-  if(!ds || ds.length === 0){ chart.data.labels=[]; chart.data.datasets.forEach(d=>d.data=[]); chart.update(); return; }
-  var lbl = ds.map(function(_,i){ return '-'+(ds.length-1-i)+unit; });
-  chart.data.labels = lbl;
-  chart.data.datasets[0].data = ds.map(function(d){return d.t});
-  chart.data.datasets[1].data = ds.map(function(d){return d.s});
-  chart.data.datasets[2].data = ds.map(function(d){return d.c});
-  chart.update('none');
-}
-
-// ── Fetch / actualización ─────────────────
+// ── Fetch (La conexión con la Nube) ────────
 async function fetchData() {
   try {
-    // Petición a ThingSpeak (Trae las últimas 100 lecturas)
-    var r = await fetch('https://api.thingspeak.com/channels/3395744/feeds.json?api_key=CDJ2ZZDB0US1OSCE&results=100');
-    var d = await r.json();
+    var apiKey = "CDJ2ZZDB0US1OSCE";
+    var channel = "3395744";
+
+    // 1. OBTENEMOS EL DATO EN VIVO (Para las 3 tarjetas de arriba)
+    // Siempre traemos el último dato real crudo (results=1) para que los indicadores no mientan
+    var resEnVivo = await fetch(`https://api.thingspeak.com/channels/${channel}/feeds.json?api_key=${apiKey}&results=1`);
+    var dataEnVivo = await resEnVivo.json();
     
-    var lecturas = d.feeds;
-    if(lecturas && lecturas.length > 0) {
-      // 1. Tomamos la lectura más reciente para las tarjetas superiores
-      var actual = lecturas[lecturas.length - 1];
-      
-      // Actualizamos los textos en pantalla (usando operadores or '|| 0' por si algún dato llega nulo)
+    if (dataEnVivo.feeds && dataEnVivo.feeds.length > 0) {
+      var actual = dataEnVivo.feeds[0];
       var t_actual = parseFloat(actual.field1) || 0;
       var s_actual = parseFloat(actual.field2) || 0;
       var c_actual = parseFloat(actual.field3) || 0;
@@ -385,44 +350,68 @@ async function fetchData() {
       document.getElementById('bCO').textContent    = coBadge(c_actual);
       
       document.getElementById('upd').textContent    = new Date().toLocaleTimeString('es-MX');
-      document.getElementById('ipTag').textContent  = "ThingSpeak";
-      document.getElementById('lugar').textContent  = d.channel.name || 'Monitoreo';
+      document.getElementById('ipTag').textContent  = dataEnVivo.channel.name || 'ThingSpeak';
+    }
 
-      // 2. ACTUALIZACIÓN DE LA GRÁFICA
-      // Generamos las etiquetas del eje X basadas en el tiempo de la muestra (Formato HH:MM)
+    // 2. OBTENEMOS EL HISTORIAL PARA LA GRÁFICA (Dependiendo del botón seleccionado)
+    var query = "";
+    if (rng === 'm') {
+      // Pestaña Min: Trae los últimos 60 datos (1 hora)
+      query = "&results=60";
+    } else if (rng === 'h') {
+      // Pestaña Horas: Promedia los datos cada 60 min, muestra 24 puntos (1 día entero)
+      query = "&average=60&results=24";
+    } else if (rng === 'd') {
+      // Pestaña Días: Promedia los datos cada 1440 min (24h), muestra 14 puntos (2 semanas)
+      query = "&average=1440&results=14";
+    }
+
+    var resGrafica = await fetch(`https://api.thingspeak.com/channels/${channel}/feeds.json?api_key=${apiKey}${query}`);
+    var dataGrafica = await resGrafica.json();
+    var lecturas = dataGrafica.feeds;
+
+    if (lecturas && lecturas.length > 0) {
+      // Procesamos las etiquetas del eje X
       var etiquetas = lecturas.map(function(f) {
         if(!f.created_at) return "";
         var fecha = new Date(f.created_at);
-        // Formateamos para mostrar la hora local de forma limpia
-        return fecha.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+        // Si estamos en la vista de días, mostramos "Día Mes" (ej. 28 May). Si no, mostramos la hora.
+        if(rng === 'd') {
+          return fecha.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
+        } else {
+          return fecha.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+        }
       });
 
-      // Extraemos los arreglos de datos transformándolos a números flotantes
+      // Extraemos los valores
       var datosTemp  = lecturas.map(function(f) { return parseFloat(f.field1) || 0; });
       var datosRuido = lecturas.map(function(f) { return parseFloat(f.field2) || 0; });
       var datosCO    = lecturas.map(function(f) { return parseFloat(f.field3) || 0; });
 
-      // Inyectamos los nuevos datos directamente a la configuración de Chart.js
+      // Actualizamos Chart.js
       chart.data.labels = etiquetas;
       chart.data.datasets[0].data = datosTemp;
       chart.data.datasets[1].data = datosRuido;
       chart.data.datasets[2].data = datosCO;
-      
-      // Forzamos el redibujado de la gráfica
       chart.update('none');
-
-      document.getElementById('dot').className  = 'dot';
-      document.getElementById('stLbl').textContent = 'Conectado';
     }
+
+    // Si todo salió bien, actualizamos la bolita verde
+    document.getElementById('dot').className  = 'dot';
+    document.getElementById('stLbl').textContent = 'Conectado';
+
   } catch(e) {
-    console.error("Error obteniendo datos de la nube:", e);
+    console.error("Error conectando a ThingSpeak:", e);
+    // Si falla el internet, ponemos la bolita en rojo
     document.getElementById('dot').className  = 'dot err';
     document.getElementById('stLbl').textContent = 'Sin señal';
   }
 }
 
+// Arrancamos todo
 fetchData();
-setInterval(fetchData, 2000);
+// ¡Cambiamos a 15 segundos (15000) para no saturar a ThingSpeak!
+setInterval(fetchData, 15000);
 </script>
 </body>
 </html>
