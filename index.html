@@ -362,24 +362,62 @@ function refreshChart(){
 // ── Fetch / actualización ─────────────────
 async function fetchData() {
   try {
-    // Reemplaza "TU_CHANNEL_ID" y "TU_READ_API_KEY" con los datos de tu canal de ThingSpeak
+    // Petición a ThingSpeak (Trae las últimas 100 lecturas)
     var r = await fetch('https://api.thingspeak.com/channels/3395744/feeds.json?api_key=CDJ2ZZDB0US1OSCE&results=100');
     var d = await r.json();
     
     var lecturas = d.feeds;
-    if(lecturas.length > 0) {
-      // Tomamos la lectura más reciente (la última del arreglo)
+    if(lecturas && lecturas.length > 0) {
+      // 1. Tomamos la lectura más reciente para las tarjetas superiores
       var actual = lecturas[lecturas.length - 1];
       
-      // Actualizamos los textos en pantalla (field1 = Temp, field2 = Ruido, field3 = CO)
-      document.getElementById('vTemp').textContent  = parseFloat(actual.field1).toFixed(1);
-      document.getElementById('vSound').textContent = parseInt(actual.field2);
-      document.getElementById('vCO').textContent    = parseInt(actual.field3);
+      // Actualizamos los textos en pantalla (usando operadores or '|| 0' por si algún dato llega nulo)
+      var t_actual = parseFloat(actual.field1) || 0;
+      var s_actual = parseFloat(actual.field2) || 0;
+      var c_actual = parseFloat(actual.field3) || 0;
+
+      document.getElementById('vTemp').textContent  = t_actual.toFixed(1);
+      document.getElementById('vSound').textContent = Math.round(s_actual);
+      document.getElementById('vCO').textContent    = Math.round(c_actual);
       
-      // ... Aquí también puedes usar los datos de "lecturas" para llenar la gráfica ...
+      document.getElementById('bTemp').textContent  = tempBadge(t_actual);
+      document.getElementById('bSound').textContent = soundBadge(s_actual);
+      document.getElementById('bCO').textContent    = coBadge(c_actual);
+      
+      document.getElementById('upd').textContent    = new Date().toLocaleTimeString('es-MX');
+      document.getElementById('ipTag').textContent  = "ThingSpeak";
+      document.getElementById('lugar').textContent  = d.channel.name || 'Monitoreo';
+
+      // 2. ACTUALIZACIÓN DE LA GRÁFICA
+      // Generamos las etiquetas del eje X basadas en el tiempo de la muestra (Formato HH:MM)
+      var etiquetas = lecturas.map(function(f) {
+        if(!f.created_at) return "";
+        var fecha = new Date(f.created_at);
+        // Formateamos para mostrar la hora local de forma limpia
+        return fecha.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+      });
+
+      // Extraemos los arreglos de datos transformándolos a números flotantes
+      var datosTemp  = lecturas.map(function(f) { return parseFloat(f.field1) || 0; });
+      var datosRuido = lecturas.map(function(f) { return parseFloat(f.field2) || 0; });
+      var datosCO    = lecturas.map(function(f) { return parseFloat(f.field3) || 0; });
+
+      // Inyectamos los nuevos datos directamente a la configuración de Chart.js
+      chart.data.labels = etiquetas;
+      chart.data.datasets[0].data = datosTemp;
+      chart.data.datasets[1].data = datosRuido;
+      chart.data.datasets[2].data = datosCO;
+      
+      // Forzamos el redibujado de la gráfica
+      chart.update('none');
+
+      document.getElementById('dot').className  = 'dot';
+      document.getElementById('stLbl').textContent = 'Conectado';
     }
   } catch(e) {
-    console.error("Error obteniendo datos de la nube");
+    console.error("Error obteniendo datos de la nube:", e);
+    document.getElementById('dot').className  = 'dot err';
+    document.getElementById('stLbl').textContent = 'Sin señal';
   }
 }
 
