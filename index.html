@@ -210,7 +210,10 @@ body>*{position:relative;z-index:1}
       <span id="stLbl">Conectando</span>
       <div class="dot" id="dot"></div>
     </div>
-    <div class="ip-tag" id="ipTag">---.---.---.---</div>
+    <div style="display:flex; gap:6px; margin-top:4px;">
+      <div class="ip-tag" id="vBat">🔋 --%</div>
+      <div class="ip-tag" id="ipTag">---.---.---.---</div>
+    </div>
   </div>
 </div>
 
@@ -342,13 +345,15 @@ async function fetchData() {
       var t_actual = parseFloat(actual.field1) || 0;
       var ir_actual = parseFloat(actual.field2) || 0;
       var c_actual = parseFloat(actual.field3) || 0;
+      var bat_actual = parseFloat(actual.field4) || 0; // <-- Leemos el field4 de ThingSpeak
 
       document.getElementById('vTemp').textContent  = t_actual.toFixed(1);
-      document.getElementById('vIR').textContent    = Math.round(ir_actual); // <-- Nuevo ID
+      document.getElementById('vIR').textContent    = Math.round(ir_actual); 
       document.getElementById('vCO').textContent    = Math.round(c_actual);
+      document.getElementById('vBat').textContent   = '🔋 ' + Math.round(bat_actual) + '%'; // <-- Actualizamos el HTML
       
       document.getElementById('bTemp').textContent  = tempBadge(t_actual);
-      document.getElementById('bIR').textContent    = irBadge(ir_actual);    // <-- Nuevo ID y Función
+      document.getElementById('bIR').textContent    = irBadge(ir_actual);    
       document.getElementById('bCO').textContent    = coBadge(c_actual);
     }
 
