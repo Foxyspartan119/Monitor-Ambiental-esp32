@@ -373,6 +373,8 @@ async function fetchData() {
       document.getElementById('vIR').textContent    = Math.round(ir_actual); 
       document.getElementById('vCO').textContent    = Math.round(c_actual);
       document.getElementById('vBat').textContent   = '🔋 ' + Math.round(bat_actual) + '%'; // <-- Actualizamos el HTML
+
+      document.getElementById('upd').textContent = ahora.toLocaleTimeString('es-MX');
       
       document.getElementById('bTemp').textContent  = tempBadge(t_actual);
       document.getElementById('bIR').textContent    = irBadge(ir_actual);    
