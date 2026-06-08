@@ -255,7 +255,7 @@ body>*{position:relative;z-index:1}
     <canvas id="myChart"></canvas>
   </div>
   <div class="legend">
-    <div class="leg-item"><div class="leg-dot" style="background:#ff7043"></div>Temperatura °C</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#ff7043"></div>Temperatura °F</div>
     <div class="leg-item"><div class="leg-dot" style="background:#42a5f5"></div>Infrarrojo %</div>
     <div class="leg-item"><div class="leg-dot" style="background:#ce93d8"></div>CO ppm</div>
   </div>
@@ -311,8 +311,8 @@ var chart = new Chart(document.getElementById('myChart').getContext('2d'), cfg);
 
 // ── Helpers Visuales ───────────────────────
 function tempBadge(v) {
-  if(v < 10) return '🧊 Muy frío'; if(v < 18) return '❄️ Frío';
-  if(v < 26) return '✅ Confortable'; if(v < 35) return '🌡️ Cálido'; return '🔥 Muy caliente';
+  if(v < 50) return '🧊 Muy frío'; if(v < 65) return '❄️ Frío';
+  if(v < 79) return '✅ Confortable'; if(v < 95) return '🌡️ Cálido'; return '🔥 Muy caliente';
 }
 function irBadge(v) {
   if(v < 10) return '⚫ Sin reflejo';
